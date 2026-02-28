@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
+import '../utils/legal_texts.dart';
 import '../utils/text_styles.dart';
 import '../widgets/app_logo.dart';
-import '../widgets/btn_primary.dart';
-import '../widgets/btn_secondary.dart';
+import '../widgets/info_dialog.dart';
 import '../widgets/input_field.dart';
-import '../widgets/social_btn.dart';
+import '../widgets/primary_button.dart';
+import '../widgets/social_button.dart';
+import '../widgets/tab_button.dart';
+import 'phone_auth.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -53,8 +56,15 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _handleSocialLogin(String provider) {
-    // TODO: Implement social login
-    debugPrint('Login with $provider');
+    if (provider == 'Phone') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const PhoneAuthScreen()),
+      );
+    } else {
+      // TODO: Implement other social logins
+      debugPrint('Login with $provider');
+    }
   }
   @override
   Widget build(BuildContext context) {
@@ -199,7 +209,11 @@ class _AuthScreenState extends State<AuthScreen> {
                     children: [
                       TextButton(
                         onPressed: () {
-                          // TODO: Open terms
+                          InfoDialog.show(
+                            context,
+                            AppConstants.termsOfService,
+                            LegalTexts.termsOfService,
+                          );
                         },
                         child: Text(
                           AppConstants.termsOfService,
@@ -209,7 +223,11 @@ class _AuthScreenState extends State<AuthScreen> {
                       Text('  •  ', style: AppTextStyles.footer),
                       TextButton(
                         onPressed: () {
-                          // TODO: Open privacy
+                          InfoDialog.show(
+                            context,
+                            AppConstants.privacyPolicy,
+                            LegalTexts.privacyPolicy,
+                          );
                         },
                         child: Text(
                           AppConstants.privacyPolicy,

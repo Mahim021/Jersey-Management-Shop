@@ -7,12 +7,14 @@ class PrimaryButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
   final bool isLoading;
+  final IconData? icon;
 
   const PrimaryButton({
     super.key,
     required this.text,
     required this.onPressed,
     this.isLoading = false,
+    this.icon,
   });
 
   @override
@@ -38,7 +40,16 @@ class PrimaryButton extends StatelessWidget {
                   valueColor: AlwaysStoppedAnimation<Color>(AppColors.textWhite),
                 ),
               )
-            : Text(text, style: AppTextStyles.button),
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(text, style: AppTextStyles.button),
+                  if (icon != null) ...[
+                    const SizedBox(width: 8),
+                    Icon(icon, color: AppColors.textWhite, size: 20),
+                  ],
+                ],
+              ),
       ),
     );
   }
