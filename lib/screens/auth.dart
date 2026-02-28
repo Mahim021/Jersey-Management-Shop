@@ -8,14 +8,15 @@ import '../widgets/btn_secondary.dart';
 import '../widgets/input_field.dart';
 import '../widgets/social_btn.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _AuthScreenState extends State<AuthScreen> {
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -24,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -40,11 +42,13 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
     
-    // TODO: Implement actual sign in logic
+    // TODO: Implement actual sign in/up logic
     Future.delayed(const Duration(seconds: 2), () {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     });
   }
 
@@ -52,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
     // TODO: Implement social login
     debugPrint('Login with $provider');
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -110,6 +113,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   const SizedBox(height: 32),
+                  // Full Name field (only for Sign Up)
+                  if (!_isLogin) ...[
+                    CustomTextField(
+                      label: 'Full Name',
+                      hint: 'John Doe',
+                      prefixIcon: Icons.person_outline,
+                      controller: _nameController,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                   // Email field
                   CustomTextField(
                     label: 'Email Address',
@@ -128,31 +141,33 @@ class _LoginScreenState extends State<LoginScreen> {
                     obscureText: _obscurePassword,
                     onTogglePassword: _togglePasswordVisibility,
                   ),
-                  const SizedBox(height: 12),
-                  // Forgot password
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        // TODO: Implement forgot password
-                      },
-                      child: Text(
-                        AppConstants.forgotPassword,
-                        style: AppTextStyles.link,
+                  // Forgot password (only for Login)
+                  if (_isLogin) ...[
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          // TODO: Implement forgot password
+                        },
+                        child: Text(
+                          AppConstants.forgotPassword,
+                          style: AppTextStyles.link,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 24),
-                  // Sign In button
+                  // Sign In/Create Account button
                   PrimaryButton(
-                    text: 'Sign In',
+                    text: _isLogin ? 'Sign In' : 'Create Account',
                     onPressed: _handleSignIn,
                     isLoading: _isLoading,
                   ),
                   const SizedBox(height: 32),
                   // OR divider
                   Text(
-                    AppConstants.orContinueWith,
+                    _isLogin ? 'OR CONTINUE WITH' : 'OR SIGN UP WITH',
                     style: AppTextStyles.inputLabel,
                   ),
                   const SizedBox(height: 24),
