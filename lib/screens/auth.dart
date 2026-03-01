@@ -9,6 +9,8 @@ import '../widgets/input_field.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/social_button.dart';
 import '../widgets/tab_button.dart';
+import 'favorites_selection.dart';
+import 'home.dart';
 import 'phone_auth.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -45,12 +47,27 @@ class _AuthScreenState extends State<AuthScreen> {
       _isLoading = true;
     });
     
-    // TODO: Implement actual sign in/up logic
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
+        
+        if (_isLogin) {
+          // Login -> go straight to home
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          // Sign Up -> go to favorites selection first
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const FavoritesSelectionScreen(),
+            ),
+          );
+        }
       }
     });
   }
@@ -61,9 +78,14 @@ class _AuthScreenState extends State<AuthScreen> {
         context,
         MaterialPageRoute(builder: (context) => const PhoneAuthScreen()),
       );
-    } else {
-      // TODO: Implement other social logins
-      debugPrint('Login with $provider');
+    } else if (provider == 'Google') {
+      // Google sign in -> go to favorites selection
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const FavoritesSelectionScreen(),
+        ),
+      );
     }
   }
   @override

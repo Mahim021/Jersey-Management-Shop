@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../widgets/primary_button.dart';
+import 'favorites_selection.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
   final String phoneNumber;
@@ -81,10 +82,14 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP Verified Successfully!')),
+      
+      // Navigate to favorites selection
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const FavoritesSelectionScreen(),
+        ),
       );
-      // TODO: Navigate to home screen
     });
   }
 
