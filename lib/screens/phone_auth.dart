@@ -1,8 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/user_service.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
+import '../utils/legal_texts.dart';
 import '../utils/text_styles.dart';
+import '../widgets/info_dialog.dart';
 import '../widgets/primary_button.dart';
+import 'main_shell.dart';
 import 'otp_verification.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
@@ -23,7 +28,16 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     super.dispose();
   }
 
-  void _sendOTP() {
+  String _buildE164PhoneNumber() {
+    final digits = _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    var phone = '$_selectedCountryCode$digits';
+    if (!phone.startsWith('+')) {
+      phone = '+880$phone';
+    }
+    return phone;
+  }
+
+  Future<void> _sendOTP() async {
     if (_phoneController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter your phone number')),
@@ -33,20 +47,69 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
 
     setState(() => _isLoading = true);
 
-    // Simulate OTP sending
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OTPVerificationScreen(
-            phoneNumber: '$_selectedCountryCode ${_phoneController.text}',
+    final phoneNumber = _buildE164PhoneNumber();
+
+    await FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        try {
+          final userCredential =
+              await FirebaseAuth.instance.signInWithCredential(credential);
+          final isNewUser =
+              userCredential.additionalUserInfo?.isNewUser ?? false;
+          final uid = userCredential.user?.uid;
+          if (isNewUser && uid != null) {
+            UserService().createUserDocument(uid, phone: phoneNumber).ignore();
+          }
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const MainShell(),
+            ),
+          );
+        } catch (e) {
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Automatic verification failed. Please try again')),
+          );
+        }
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        final message = switch (e.code) {
+          'operation-not-allowed' =>
+            'Phone sign-in is disabled. Enable it in Firebase Console → Authentication → Sign-in method.',
+          'invalid-phone-number' => 'Invalid phone number. Please check the number and try again.',
+          'quota-exceeded' => 'SMS quota exceeded. Please try again later.',
+          'network-request-failed' => 'No internet connection. Please check your network.',
+          _ => e.message ?? 'Phone verification failed. Please try again.',
+        };
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+        );
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OTPVerificationScreen(
+              phoneNumber: phoneNumber,
+              verificationId: verificationId,
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {},
+    );
+  }
+
+  void _showLegalDialog(String title, String content) {
+    InfoDialog.show(context, title, content);
   }
 
   @override
@@ -256,9 +319,10 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       TextButton(
-                        onPressed: () {
-                          // TODO: Show terms
-                        },
+                        onPressed: () => _showLegalDialog(
+                          AppConstants.termsOfService,
+                          LegalTexts.termsOfService,
+                        ),
                         child: Text(
                           AppConstants.termsOfService,
                           style: AppTextStyles.footer,
@@ -266,9 +330,10 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                       ),
                       Text('  •  ', style: AppTextStyles.footer),
                       TextButton(
-                        onPressed: () {
-                          // TODO: Show privacy
-                        },
+                        onPressed: () => _showLegalDialog(
+                          AppConstants.privacyPolicy,
+                          LegalTexts.privacyPolicy,
+                        ),
                         child: Text(
                           AppConstants.privacyPolicy,
                           style: AppTextStyles.footer,

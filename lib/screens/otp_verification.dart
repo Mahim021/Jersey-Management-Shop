@@ -1,17 +1,23 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/user_service.dart';
 import '../utils/colors.dart';
+import '../utils/legal_texts.dart';
 import '../utils/text_styles.dart';
+import '../widgets/info_dialog.dart';
 import '../widgets/primary_button.dart';
-import 'favorites_selection.dart';
+import 'main_shell.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
   final String phoneNumber;
+  final String verificationId;
 
   const OTPVerificationScreen({
     super.key,
     required this.phoneNumber,
+    required this.verificationId,
   });
 
   @override
@@ -23,12 +29,15 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isLoading = false;
+  bool _isResending = false;
   int _remainingSeconds = 45;
   Timer? _timer;
+  late String _verificationId;
 
   @override
   void initState() {
     super.initState();
+    _verificationId = widget.verificationId;
     _startTimer();
   }
 
@@ -57,18 +66,63 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     });
   }
 
-  void _resendCode() {
-    if (_remainingSeconds == 0) {
-      _startTimer();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Code resent successfully!')),
-      );
-    }
+  Future<void> _resendCode() async {
+    if (_remainingSeconds != 0 || _isResending) return;
+
+    setState(() => _isResending = true);
+
+    await FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: widget.phoneNumber,
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        try {
+          final userCredential =
+              await FirebaseAuth.instance.signInWithCredential(credential);
+          final isNewUser =
+              userCredential.additionalUserInfo?.isNewUser ?? false;
+          final uid = userCredential.user?.uid;
+          if (isNewUser && uid != null) {
+            UserService()
+                .createUserDocument(uid, phone: widget.phoneNumber)
+                .ignore();
+          }
+          if (!mounted) return;
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const MainShell(),
+            ),
+            (_) => false,
+          );
+        } catch (e) {
+          if (!mounted) return;
+          setState(() => _isResending = false);
+        }
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        if (!mounted) return;
+        setState(() => _isResending = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Failed to resend code')),
+        );
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        if (!mounted) return;
+        setState(() {
+          _verificationId = verificationId;
+          _isResending = false;
+        });
+        _startTimer();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Code resent successfully!')),
+        );
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {},
+    );
   }
 
-  void _verifyOTP() {
+  Future<void> _verifyOTP() async {
     String otp = _otpControllers.map((c) => c.text).join();
-    
+
     if (otp.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter complete OTP')),
@@ -78,27 +132,63 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
     setState(() => _isLoading = true);
 
-    // Simulate verification
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId,
+        smsCode: otp,
+      );
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+      final uid = userCredential.user?.uid;
+      if (isNewUser && uid != null) {
+        UserService()
+            .createUserDocument(uid, phone: widget.phoneNumber)
+            .ignore();
+      }
       if (!mounted) return;
-      setState(() => _isLoading = false);
-      
-      // Navigate to favorites selection
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => const FavoritesSelectionScreen(),
+          builder: (context) => const MainShell(),
         ),
+        (_) => false,
       );
-    });
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final message = switch (e.code) {
+        'invalid-verification-code' => 'Incorrect code. Please try again',
+        'session-expired' => 'Code expired. Please request a new one',
+        _ => 'Verification failed. Please try again',
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification failed. Please try again')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showLegalDialog(String title, String content) {
+    InfoDialog.show(context, title, content);
   }
 
   String _getMaskedPhoneNumber() {
-    if (widget.phoneNumber.length > 6) {
-      String last = widget.phoneNumber.substring(widget.phoneNumber.length - 2);
-      return '+1 •••• ••• $last';
-    }
-    return widget.phoneNumber;
+    final phone = widget.phoneNumber;
+    final match = RegExp(r'^(\+\d{1,3})(\d+)$').firstMatch(phone);
+    if (match == null) return phone;
+    final countryCode = match.group(1)!;
+    final rest = match.group(2)!;
+    if (rest.length <= 2) return phone;
+    final last = rest.substring(rest.length - 2);
+    return '$countryCode •••• ••• $last';
   }
 
   @override
@@ -258,7 +348,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       TextButton(
-                        onPressed: _remainingSeconds == 0 ? _resendCode : null,
+                        onPressed: (_remainingSeconds == 0 && !_isResending) ? _resendCode : null,
                         child: Text(
                           'Resend Code',
                           style: AppTextStyles.link.copyWith(
@@ -298,9 +388,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       TextButton(
-                        onPressed: () {
-                          // TODO: Help Center
-                        },
+                        onPressed: () => _showLegalDialog('Help Center', LegalTexts.helpCenter),
                         child: Text(
                           'Help Center',
                           style: AppTextStyles.footer,
@@ -308,9 +396,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                       ),
                       Text('  •  ', style: AppTextStyles.footer),
                       TextButton(
-                        onPressed: () {
-                          // TODO: Security Policy
-                        },
+                        onPressed: () => _showLegalDialog('Security Policy', LegalTexts.securityPolicy),
                         child: Text(
                           'Security Policy',
                           style: AppTextStyles.footer,

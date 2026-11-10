@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "715028127856",
+    "project_id": "jerseyhub-jms-app",
+    "storage_bucket": "jerseyhub-jms-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:715028127856:android:366ced6e367865fe3b94b5",
+        "android_client_info": {
+          "package_name": "com.jms.jms_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "715028127856-qqodffufldam515i27ns845t9plp4hg3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_R4mHdArmTSBhaRzJoFcB4j56FUGfo10"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "715028127856-218di2ejfro8mdgkce42f5oa9iq2bu2k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
