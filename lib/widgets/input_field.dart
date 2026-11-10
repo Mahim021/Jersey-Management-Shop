@@ -50,7 +50,7 @@ class CustomTextField extends StatelessWidget {
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: AppTextStyles.inputText.copyWith(
-                color: AppColors.textGrey.withOpacity(0.7),
+                color: AppColors.textGrey.withValues(alpha: 0.7),
               ),
               prefixIcon: Icon(
                 prefixIcon,

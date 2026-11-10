@@ -120,4 +120,64 @@ Address: 123 Jersey Street, Sports City, SC 12345
 
 Last Updated: March 1, 2026
 ''';
+
+  // Help Center
+  static const String helpCenter = '''
+JerseyHub Help Center
+
+Need assistance? We're here to help.
+
+1. ACCOUNT & LOGIN
+• Trouble signing in? Use "Forgot Password" on the login screen or request a new OTP code.
+• To update your phone number or email, go to Profile > Settings.
+
+2. ORDERS & TRACKING
+• View your order history and track shipments under Profile > My Orders.
+• Orders can be cancelled within 1 hour of placement from the order details screen.
+
+3. PAYMENTS
+• We support Cash on Delivery, bKash, Nagad, and Bank Transfer.
+• Refunds for cancelled orders are processed within 5-7 business days.
+
+4. RETURNS & EXCHANGES
+• Items can be returned within 14 days of delivery if unworn and in original packaging.
+• Start a return from Profile > My Orders > Order Details > Request Return.
+
+5. CONTACT SUPPORT
+Still need help? Reach out to our support team:
+Email: support@jerseyhub.com
+Phone: +880 1XXX-XXXXXX
+Hours: Sunday-Thursday, 9:00 AM - 6:00 PM
+''';
+
+  // Security Policy
+  static const String securityPolicy = '''
+JerseyHub Security Policy
+
+We take the security of your account and data seriously.
+
+1. ACCOUNT PROTECTION
+• Your password is never stored in plain text — it is securely hashed by Firebase Authentication.
+• Phone sign-in uses one-time passcodes (OTP) that expire shortly after being sent.
+• We recommend using a strong, unique password and never sharing your verification codes.
+
+2. DATA ENCRYPTION
+• All data transmitted between the app and our servers is encrypted using SSL/TLS.
+• Stored data is protected using industry-standard encryption provided by our cloud infrastructure.
+
+3. SUSPICIOUS ACTIVITY
+• We monitor for unusual sign-in attempts and may temporarily lock accounts to prevent unauthorized access.
+• If you notice any activity you don't recognize, contact support immediately.
+
+4. YOUR RESPONSIBILITIES
+• Keep your device and app up to date.
+• Do not share your password or OTP codes with anyone, including JerseyHub staff.
+• Log out of shared or public devices after use.
+
+5. REPORTING A SECURITY ISSUE
+If you discover a vulnerability or security concern, please report it to:
+Email: security@jerseyhub.com
+
+Last Updated: March 1, 2026
+''';
 }

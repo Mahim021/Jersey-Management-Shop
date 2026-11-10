@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/colors.dart';
-import '../utils/text_styles.dart';
 import '../widgets/primary_button.dart';
-import 'home.dart';
+import 'main_shell.dart';
 
 class FavoritesSelectionScreen extends StatefulWidget {
   const FavoritesSelectionScreen({super.key});
@@ -39,7 +38,7 @@ class _FavoritesSelectionScreenState extends State<FavoritesSelectionScreen> {
   void _continue() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (context) => const MainShell()),
     );
   }
 
@@ -108,7 +107,7 @@ class _FavoritesSelectionScreenState extends State<FavoritesSelectionScreen> {
                   crossAxisCount: 3,
                   crossAxisSpacing: 20,
                   mainAxisSpacing: 20,
-                  childAspectRatio: 0.85,
+                  childAspectRatio: 0.75,
                 ),
                 itemCount: _teams.length,
                 itemBuilder: (context, index) {
@@ -118,58 +117,65 @@ class _FavoritesSelectionScreenState extends State<FavoritesSelectionScreen> {
                   return GestureDetector(
                     onTap: () => _toggleTeam(team['name']!),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Stack(
-                          children: [
-                            Container(
-                              width: 100,
-                              height: 100,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2C3E50),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSelected 
-                                      ? AppColors.primary 
-                                      : Colors.transparent,
-                                  width: 3,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  team['icon']!,
-                                  style: const TextStyle(fontSize: 40),
-                                ),
-                              ),
-                            ),
-                            if (isSelected)
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: Container(
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    shape: BoxShape.circle,
+                        AspectRatio(
+                          aspectRatio: 1,
+                          child: Stack(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2C3E50),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : Colors.transparent,
+                                    width: 3,
                                   ),
-                                  child: const Icon(
-                                    Icons.check,
-                                    color: Colors.white,
-                                    size: 18,
+                                ),
+                                child: Center(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      team['icon']!,
+                                      style: const TextStyle(fontSize: 40),
+                                    ),
                                   ),
                                 ),
                               ),
-                          ],
+                              if (isSelected)
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 26,
+                                    height: 26,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           team['name']!,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
                           textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),

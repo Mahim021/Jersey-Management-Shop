@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/user_service.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../utils/legal_texts.dart';
@@ -9,9 +11,8 @@ import '../widgets/input_field.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/social_button.dart';
 import '../widgets/tab_button.dart';
-import 'favorites_selection.dart';
-import 'home.dart';
-import 'phone_auth.dart';
+import 'forgot_password.dart';
+import 'main_shell.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -26,7 +27,8 @@ class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLogin = true; // true = Login, false = Sign Up
-  bool _isLoading = false;
+  bool _isLoading = false; // email sign in / sign up in progress
+  bool _isGoogleLoading = false; // Google sign in in progress
 
   @override
   void dispose() {
@@ -42,51 +44,220 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
-  void _handleSignIn() {
+  Future<void> _handleSignIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
     setState(() {
       _isLoading = true;
     });
-    
-    Future.delayed(const Duration(seconds: 2), () {
+
+    try {
+      if (_isLogin) {
+        // main.dart's auth stream routes to the verify screen or homepage.
+        final credential =
+            await AuthService().signInWithEmail(email, password);
+        final user = credential.user;
+        if (user != null && user.emailVerified) {
+          UserService()
+              .markEmailVerified(
+                user.uid,
+                email: user.email ?? email,
+                displayName: user.displayName ?? '',
+              )
+              .ignore();
+        }
+      } else {
+        final credential = await AuthService().signUpWithEmail(
+          email,
+          password,
+          displayName: _nameController.text.trim(),
+        );
+        final uid = credential.user?.uid;
+        // emailVerified = 0 until the user confirms via the emailed link.
+        if (uid != null) {
+          UserService()
+              .createUserDocument(
+                uid,
+                email: email,
+                displayName: _nameController.text.trim(),
+                emailVerified: 0,
+              )
+              .then((_) => debugPrint('users/$uid created (emailVerified=0)'))
+              .catchError(
+                (Object e) => debugPrint('create users/$uid FAILED: $e'),
+              );
+        }
+        // main.dart's auth stream shows the verify-email screen next.
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is String ? e : 'Something went wrong. Please try again'),
+        ),
+      );
+    } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-        
-        if (_isLogin) {
-          // Login -> go straight to home
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
-        } else {
-          // Sign Up -> go to favorites selection first
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const FavoritesSelectionScreen(),
-            ),
-          );
-        }
       }
-    });
+    }
+  }
+
+  void _showUnderConstruction(String feature) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text('$feature is under construction')),
+      );
   }
 
   void _handleSocialLogin(String provider) {
-    if (provider == 'Phone') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const PhoneAuthScreen()),
-      );
-    } else if (provider == 'Google') {
-      // Google sign in -> go to favorites selection
+    // Google / Phone auth temporarily disabled. To re-enable, call
+    // _handleGoogleSignIn() or push PhoneAuthScreen() here.
+    _showUnderConstruction('$provider sign-in');
+  }
+
+  // ignore: unused_element
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isGoogleLoading = true;
+    });
+
+    try {
+      final credential = await AuthService().signInWithGoogle();
+      final user = credential.user;
+      final isNewUser = credential.additionalUserInfo?.isNewUser ?? false;
+      // Navigate immediately — Firestore write in background to avoid race
+      // where authStateChanges fires before navigation completes.
+      if (isNewUser && user != null) {
+        UserService()
+            .createUserDocument(
+              user.uid,
+              email: user.email ?? '',
+              displayName: user.displayName ?? '',
+            )
+            .ignore();
+      }
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const FavoritesSelectionScreen(),
+          builder: (context) => const MainShell(),
         ),
       );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is String ? e : 'Something went wrong. Please try again'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGoogleLoading = false;
+        });
+      }
     }
+  }
+
+  // ignore: unused_element
+  void _showForgotPasswordDialog() {
+    final emailController = TextEditingController();
+    final screenContext = context;
+    bool isSending = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF2A2A2E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text(
+                'Reset Password',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Enter your email address and we\'ll send you a link to reset your password.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: emailController,
+                    style: const TextStyle(color: Colors.white),
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      hintText: 'name@example.com',
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      filled: true,
+                      fillColor: AppColors.inputBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: TextButton.styleFrom(foregroundColor: Colors.grey[400]),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: isSending
+                      ? null
+                      : () async {
+                          final email = emailController.text.trim();
+                          setDialogState(() => isSending = true);
+                          try {
+                            await AuthService().sendPasswordResetEmail(email);
+                            if (!dialogContext.mounted) return;
+                            Navigator.pop(dialogContext);
+                            if (!screenContext.mounted) return;
+                            ScaffoldMessenger.of(screenContext).showSnackBar(
+                              const SnackBar(content: Text('Password reset email sent')),
+                            );
+                          } catch (e) {
+                            setDialogState(() => isSending = false);
+                            if (!dialogContext.mounted) return;
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              SnackBar(
+                                content: Text(e is String ? e : 'Failed to send reset email'),
+                              ),
+                            );
+                          }
+                        },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: isSending ? AppColors.primary.withValues(alpha: 0.5) : AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: isSending
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Send', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
   @override
   Widget build(BuildContext context) {
@@ -179,9 +350,12 @@ class _AuthScreenState extends State<AuthScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {
-                          // TODO: Implement forgot password
-                        },
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ForgotPasswordScreen(),
+                          ),
+                        ),
                         child: Text(
                           AppConstants.forgotPassword,
                           style: AppTextStyles.link,
@@ -195,6 +369,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     text: _isLogin ? 'Sign In' : 'Create Account',
                     onPressed: _handleSignIn,
                     isLoading: _isLoading,
+                    disabled: _isGoogleLoading,
                   ),
                   const SizedBox(height: 32),
                   // OR divider
@@ -211,6 +386,8 @@ class _AuthScreenState extends State<AuthScreen> {
                           text: 'Google',
                           svgPath: 'assets/images/googleLogo.svg',
                           onPressed: () => _handleSocialLogin('Google'),
+                          isLoading: _isGoogleLoading,
+                          disabled: _isLoading,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -220,6 +397,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           icon: Icons.phone_outlined,
                           isDark: true,
                           onPressed: () => _handleSocialLogin('Phone'),
+                          disabled: _isLoading || _isGoogleLoading,
                         ),
                       ),
                     ],
