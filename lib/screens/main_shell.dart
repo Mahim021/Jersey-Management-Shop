@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../utils/cart_state.dart';
 import '../utils/colors.dart';
+import '../widgets/app_drawer.dart';
 import 'auth.dart';
 import 'explore.dart';
 import 'home.dart';
@@ -51,6 +53,8 @@ class MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
+      // Opened from the Home header; tapping outside it closes it.
+      drawer: AppDrawer(onNavigate: navigateTo),
       body: IndexedStack(
         index: _currentIndex,
         children: [
@@ -84,14 +88,22 @@ class MainShellState extends State<MainShell> {
           _buildNavItem(Icons.home_rounded, 'Home', 0),
           _buildNavItem(Icons.explore_outlined, 'Explore', 1),
           _buildCenterNavItem(),
-          _buildNavItem(Icons.shopping_cart_outlined, 'Cart', 3),
+          ValueListenableBuilder<int>(
+            valueListenable: cartItemCount,
+            builder: (_, count, _) => _buildNavItem(
+              Icons.shopping_cart_outlined,
+              'Cart',
+              3,
+              badge: count,
+            ),
+          ),
           _buildNavItem(Icons.person_outline_rounded, 'Profile', 4),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
+  Widget _buildNavItem(IconData icon, String label, int index, {int badge = 0}) {
     final isActive = _currentIndex == index;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -101,10 +113,35 @@ class MainShellState extends State<MainShell> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isActive ? AppColors.primary : Colors.grey,
-              size: 24,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  color: isActive ? AppColors.primary : Colors.grey,
+                  size: 24,
+                ),
+                if (badge > 0)
+                  Positioned(
+                    right: -8,
+                    top: -6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$badge',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(
